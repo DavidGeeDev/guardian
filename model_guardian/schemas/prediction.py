@@ -37,7 +37,7 @@ class Prediction(BaseModel, Generic[T]):
     latency_ms: Optional[float] = Field(default=None, ge=0.0)
 
     @field_serializer("raw")
-    def _serialize_raw(self, v: Optional[Mapping[str, Any]]) -> Optional[Any]:
+    def _serialize_raw(self, v: Optional[Mapping[str, Any]]) -> Optional[dict[str, Any]]:
         """Serialize read-only/raw artifacts to JSON-friendly plain containers."""
         if v is None:
             return None
@@ -60,4 +60,5 @@ class Prediction(BaseModel, Generic[T]):
                 return obj.tolist()
             return obj
 
+        # v is a Mapping[str, Any] so the top-level is always a dict after normalization.
         return to_plain(v)
