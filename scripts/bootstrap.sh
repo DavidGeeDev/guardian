@@ -6,4 +6,4 @@ source .venv/bin/activate
 python -m pip install --upgrade pip
 pip install -e ".[dev]"
 
-echo "Ready. Try: make test" 
+echo "Ready. Try: make test"
