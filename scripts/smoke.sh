@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Smoke test used locally and in CI.
-# Assumes dependencies already installed (e.g., pip install -e " .[dev] ").
+# Assumes dependencies already installed (e.g., pip install -e ".[dev]").
 
 echo "==> compileall"
 python -m compileall -q model_guardian
