@@ -18,12 +18,8 @@ instantiated by the host application.
 """
 
 from dataclasses import dataclass
-from importlib import metadata
-from typing import Any, Callable, Dict, Mapping, Optional, TypeVar
-
-
-T = TypeVar("T")
-
+from importlib import import_module, metadata
+from typing import Any, Dict, Mapping, Optional
 
 @dataclass(frozen=True)
 class PluginSpec:
@@ -44,14 +40,12 @@ class PluginSpec:
 
 
 def _load_from_dotted_path(path: str) -> Any:
-    import importlib
-
     if ":" in path:
         mod, attr = path.split(":", 1)
     else:
         # allow "pkg.mod.Class" form
         mod, attr = path.rsplit(".", 1)
-    module = importlib.import_module(mod)
+    module = import_module(mod)
     return getattr(module, attr)
 
 
