@@ -1,4 +1,4 @@
-# Model Guardian
+# Model Guardian — Phase 0 (Model-Agnostic Core)
 
 Phase 0 is an **in-process (decorator/middleware) wrapper** around a model's `predict()` call that:
 - adds **Humility** via post-hoc uncertainty quantification (MAPIE in Phase 0),
