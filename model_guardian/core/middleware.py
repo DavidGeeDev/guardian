@@ -80,7 +80,10 @@ class DefaultGuardian(Generic[InputT, OutputT]):
             pred = pred.model_copy(update={"raw": deep_freeze(dict(pred.raw))})
 
         # 2) signal computation (uncertainty + drift)
-        signals: list[Signal] = []
+        # We keep two lists:
+        # - policy_signals: what the policy is allowed to consider (shadow drift excludes drift signals)
+        # - all_signals: what we return and emit to telemetry (includes drift results / timeout markers)
+        policy_signals: list[Signal] = []
 
         # drift is non-blocking; schedule it early
         drift_task: asyncio.Task[Sequence[Signal]] | None = None
@@ -88,15 +91,25 @@ class DefaultGuardian(Generic[InputT, OutputT]):
             drift_task = asyncio.create_task(self._drift.compute(x=x, prediction=pred, context=ctx))
 
         uncertainty_score: UncertaintyScore = await self._uncertainty.quantify(x=x, prediction=pred, context=ctx)
-        signals.extend(list(await self._uncertainty.compute(x=x, prediction=pred, context=ctx)))
+        uq_signals = list(await self._uncertainty.compute(x=x, prediction=pred, context=ctx))
+        policy_signals.extend(uq_signals)
 
-        drift_signals: Sequence[Signal] = []
+        drift_signals: list[Signal] = []
         if drift_task is not None:
             try:
-                drift_signals = await asyncio.wait_for(drift_task, timeout=self._nb_timeout)
+                drift_signals = list(await asyncio.wait_for(drift_task, timeout=self._nb_timeout))
             except TimeoutError:
                 # allow it to continue in background; do not cancel
-                pass
+                drift_signals = [
+                    Signal.warning(
+                        name="drift.timeout",
+                        provider=getattr(self._drift, "name", type(self._drift).__name__),
+                        type=SignalType.DRIFT,
+                        value={"timeout_ms": self._config.nonblocking_timeout_ms},
+                        message="Drift check exceeded non-blocking timeout; continuing in background.",
+                        blocking=False,
+                    )
+                ]
             except asyncio.CancelledError:
                 raise
             except Exception as e:
@@ -112,7 +125,7 @@ class DefaultGuardian(Generic[InputT, OutputT]):
                         severity=SignalSeverity.CRITICAL,
                         value={"error": type(e).__name__},
                         message=str(e),
-                        details={"message": str(e)},
+                        details={"error_type": type(e).__name__},
                         blocking=False,
                     )
                 ]
@@ -121,30 +134,31 @@ class DefaultGuardian(Generic[InputT, OutputT]):
         # - shadow: record drift signals but do not let them influence policy
         # - enforce: include drift signals in the policy inputs
         if self._config.drift_mode == "enforce":
-            signals.extend(list(drift_signals))
-        elif self._config.drift_mode == "shadow":
-            # Add a non-blocking meta signal to indicate drift check ran/queued.
-            if drift_task is not None:
-                signals.append(
-                    Signal(
-                        name="drift.shadow",
-                        provider="guardian",
-                        type=SignalType.DRIFT,
-                        severity=SignalSeverity.INFO,
-                        value={"mode": "shadow"},
-                        message="Drift check executed in shadow mode (not policy-enforcing).",
-                        details={"message": "Drift check executed in shadow mode (not policy-enforcing)."},
-                        blocking=False,
-                    )
+            policy_signals.extend(drift_signals)
+
+        # all_signals are what we emit/return (includes drift results regardless of mode)
+        all_signals: list[Signal] = list(policy_signals)
+        if self._config.drift_mode != "enforce":
+            all_signals.extend(drift_signals)
+
+        if self._config.drift_mode == "shadow" and drift_task is not None:
+            all_signals.append(
+                Signal.info(
+                    name="drift.shadow",
+                    provider="guardian",
+                    type=SignalType.DRIFT,
+                    value={"mode": "shadow"},
+                    message="Drift check ran in shadow mode (not policy-enforcing).",
+                    blocking=False,
                 )
-            # Drift signals are still emitted to telemetry below.
+            )
 
         # 3) policy decision
         decision: GuardianDecision = await self._policy.decide(
             x=x,
             prediction=pred,
             uncertainty=uncertainty_score,
-            signals=signals,
+            signals=policy_signals,
             context=ctx,
         )
 
@@ -165,7 +179,7 @@ class DefaultGuardian(Generic[InputT, OutputT]):
                     context=ctx,
                     failure=failure,
                     decision=decision,
-                    signals=signals + list(drift_signals),
+                    signals=all_signals,
                 )
             )
             return GuardianResponse(
@@ -173,7 +187,7 @@ class DefaultGuardian(Generic[InputT, OutputT]):
                 failure=failure,
                 uncertainty=uncertainty_score,
                 decision=decision,
-                signals=signals,
+                signals=all_signals,
             )
 
         asyncio.create_task(
@@ -182,7 +196,7 @@ class DefaultGuardian(Generic[InputT, OutputT]):
                 prediction=pred,
                 uncertainty=uncertainty_score,
                 decision=decision,
-                signals=signals + list(drift_signals),
+                signals=all_signals,
             )
         )
 
@@ -191,5 +205,5 @@ class DefaultGuardian(Generic[InputT, OutputT]):
             failure=None,
             uncertainty=uncertainty_score,
             decision=decision,
-            signals=signals,
+            signals=all_signals,
         )
