@@ -12,4 +12,3 @@ pytest -q
 
 echo "==> run example"
 python examples/sklearn_mapie_hello_world.py
-
