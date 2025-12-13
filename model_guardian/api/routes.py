@@ -16,7 +16,7 @@ from sklearn.linear_model import LogisticRegression
 
 try:
     from mapie.classification import MapieClassifier
-except Exception:  # pragma: no cover
+except ImportError:  # pragma: no cover
     MapieClassifier = None
 
 router = APIRouter()
