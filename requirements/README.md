@@ -6,8 +6,15 @@ Two supported lock strategies:
 
 ## Option A (recommended): uv
 - Install: `pip install uv`
-- Lock: `uv lock` (produces `uv.lock`)
-- Sync: `uv sync --all-extras` (or `uv pip install -e ".[dev]"`)
+- Lock: `make lock-uv` (wraps `scripts/lock_uv.sh`)
+  - Uses `uv pip compile` to generate:
+    - `requirements/base.lock`
+    - `requirements/dev.lock`
+- Install from lock (hash-verified):
+  - `pip install --require-hashes -r requirements/dev.lock`
+
+> Note: `uv lock` is a different workflow that produces `uv.lock`. This repo
+> intentionally uses `uv pip compile` to generate pip-compatible lockfiles.
 
 ## Option B: pip-tools
 - Install: `pip install pip-tools`
