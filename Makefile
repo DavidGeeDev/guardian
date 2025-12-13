@@ -7,7 +7,7 @@ help:
 	@echo "Targets:"
 	@echo "  install         Install package (editable)"
 	@echo "  install-dev     Install package with dev extras"
-	@echo "  lock-uv         Generate uv.lock (recommended)"
+	@echo "  lock-uv         Generate requirements/base.lock and requirements/dev.lock via uv (recommended)"
 	@echo "  lock-piptools   Generate requirements/*.lock via pip-tools"
 	@echo "  test            Compile + run pytest"
 	@echo "  lint            Run ruff (requires dev extras)"
