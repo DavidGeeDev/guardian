@@ -4,8 +4,13 @@ import time
 from typing import Any, Optional, Sequence, TypeVar, Generic
 
 import numpy as np
-from mapie.classification import MapieClassifier
-from mapie.regression import MapieRegressor
+
+try:
+    from mapie.classification import MapieClassifier
+    from mapie.regression import MapieRegressor
+except Exception:  # pragma: no cover
+    MapieClassifier = None  # type: ignore[assignment]
+    MapieRegressor = None  # type: ignore[assignment]
 
 from model_guardian.core.utils import run_sync
 from model_guardian.interfaces import ModelAdapter, UncertaintyAdapter
@@ -20,7 +25,7 @@ class MapieModelAdapter(ModelAdapter[Sequence[float], Any]):
 
     def __init__(
         self,
-        mapie: MapieClassifier | MapieRegressor,
+        mapie: Any,
         *,
         model_id: str | None = None,
         model_version: str | None = None,
@@ -40,10 +45,15 @@ class MapieModelAdapter(ModelAdapter[Sequence[float], Any]):
         return self._model_version
 
     async def predict(self, x: Sequence[float], *, context: RequestContext) -> Prediction[Any]:
+        if MapieClassifier is None or MapieRegressor is None:
+            raise RuntimeError(
+                "MAPIE is not installed. Install dependencies with `pip install model-guardian[dev]` "
+                "or `pip install mapie` (Phase 0 pins mapie<1.0)."
+            )
         X = np.asarray([list(x)], dtype=float)
 
         def _predict_sync():
-            if isinstance(self._mapie, MapieClassifier):
+            if MapieClassifier is not None and isinstance(self._mapie, MapieClassifier):
                 y_pred, y_ps = self._mapie.predict(X, alpha=self._alpha)
                 proba = None
                 if hasattr(self._mapie, "predict_proba"):
