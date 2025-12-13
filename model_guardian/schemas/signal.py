@@ -55,8 +55,6 @@ class Signal(BaseModel):
     ) -> "Signal":
         if value is None:
             value = {}
-        if details is None and message is not None:
-            details = {"message": message}
         return cls(
             name=name,
             provider=provider,
@@ -82,8 +80,6 @@ class Signal(BaseModel):
     ) -> "Signal":
         if value is None:
             value = {}
-        if details is None and message is not None:
-            details = {"message": message}
         return cls(
             name=name,
             provider=provider,
@@ -109,8 +105,6 @@ class Signal(BaseModel):
     ) -> "Signal":
         if value is None:
             value = {}
-        if details is None and message is not None:
-            details = {"message": message}
         return cls(
             name=name,
             provider=provider,
