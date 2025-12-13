@@ -48,7 +48,7 @@ class Prediction(BaseModel, Generic[T]):
         return frozen
 
     @field_serializer("raw")
-    def _serialize_raw(self, v: Optional[Mapping[str, Any]]):
+    def _serialize_raw(self, v: Optional[Mapping[str, Any]]) -> Optional[Any]:
         """Serialize read-only/raw artifacts to JSON-friendly plain containers."""
         if v is None:
             return None
@@ -60,6 +60,14 @@ class Prediction(BaseModel, Generic[T]):
                 return [to_plain(x) for x in obj]
             if isinstance(obj, frozenset):
                 return [to_plain(x) for x in obj]
+            # numpy arrays are common artifacts; ensure they serialize cleanly
+            try:
+                import numpy as np
+
+                if isinstance(obj, np.ndarray):
+                    return obj.tolist()
+            except Exception:
+                pass
             return obj
 
         return to_plain(v)
