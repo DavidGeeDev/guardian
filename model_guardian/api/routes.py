@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from model_guardian import DefaultGuardian
@@ -13,7 +13,11 @@ from model_guardian.implementations.telemetry.jsonl import JsonlFileSink
 
 from sklearn.datasets import load_iris
 from sklearn.linear_model import LogisticRegression
-from mapie.classification import MapieClassifier
+
+try:
+    from mapie.classification import MapieClassifier
+except ImportError:  # pragma: no cover
+    MapieClassifier = None
 
 router = APIRouter()
 
@@ -26,6 +30,8 @@ _guardian: DefaultGuardian | None = None
 
 
 def get_demo_guardian() -> DefaultGuardian:
+    if MapieClassifier is None:
+        raise HTTPException(status_code=500, detail="MAPIE is not installed (Phase 0 requires mapie<1.0).")
     global _guardian
     if _guardian is not None:
         return _guardian

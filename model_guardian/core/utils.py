@@ -50,15 +50,16 @@ def deep_freeze(obj: Any) -> Any:
     # numpy arrays: copy & make read-only if available
     try:  # pragma: no cover
         import numpy as np
+    except ImportError:
+        np = None  # type: ignore
 
-        if isinstance(obj, np.ndarray):
-            arr = obj.copy()
-            try:
-                arr.setflags(write=False)
-            except Exception:
-                pass
-            return arr
-    except Exception:
-        pass
+    if np is not None and isinstance(obj, np.ndarray):
+        arr = obj.copy()
+        try:
+            arr.setflags(write=False)
+        except (ValueError, AttributeError):
+            # Some array-like objects may not support write flags; best-effort.
+            pass
+        return arr
 
     return obj

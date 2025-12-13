@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-import asyncio
+import pytest
+
+pytest.importorskip("mapie")
+from mapie.classification import MapieClassifier
 
 from sklearn.datasets import load_iris
 from sklearn.linear_model import LogisticRegression
-from mapie.classification import MapieClassifier
 
 from model_guardian import DefaultGuardian
 from model_guardian.implementations.mapie.adapter import MapieModelAdapter, MapieUncertaintyAdapter

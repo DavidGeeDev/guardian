@@ -1,4 +1,5 @@
 from .context import RequestContext
+from .config import GuardianConfig, GuardianSettings
 from .decision import GuardianAction, GuardianDecision
 from .failure import FailureRecord, FailureType
 from .prediction import Prediction
@@ -8,6 +9,8 @@ from .uncertainty import UncertaintyScore
 
 __all__ = [
     "RequestContext",
+    "GuardianConfig",
+    "GuardianSettings",
     "GuardianAction",
     "GuardianDecision",
     "FailureType",

@@ -21,7 +21,11 @@ class GuardianResponse(BaseModel, Generic[T]):
 
     model_config = ConfigDict(extra="forbid")
 
-    prediction: Optional[Prediction[T]] = None
+    # NOTE: We intentionally accept the unspecialized `Prediction` model at runtime.
+    # This avoids brittle runtime validation failures when callers instantiate
+    # `Prediction(...)` without subscripting it (e.g., `Prediction[int](...)`).
+    # Type checkers can still treat `GuardianResponse[T]` as carrying `Prediction[T]`.
+    prediction: Optional[Prediction] = None
     failure: Optional[FailureRecord] = None
 
     uncertainty: Optional[UncertaintyScore] = None

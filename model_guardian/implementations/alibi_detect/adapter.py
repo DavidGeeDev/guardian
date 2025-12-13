@@ -66,6 +66,7 @@ class AlibiDriftAdapter(DriftAdapter[Sequence[float], Any]):
         return [
             Signal(
                 name="drift.ks",
+                provider=self.name,
                 type=SignalType.DRIFT,
                 severity=severity,
                 value={"is_drift": is_drift, "p_val": p_val},

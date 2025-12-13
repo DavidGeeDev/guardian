@@ -9,7 +9,7 @@ from model_guardian.interfaces import TelemetrySink
 from model_guardian.schemas import FailureRecord, GuardianDecision, Prediction, RequestContext, Signal, UncertaintyScore
 
 
-class JsonlFileSink(TelemetrySink):
+class JsonlTelemetrySink(TelemetrySink):
     """Append-only JSONL telemetry sink (Phase 0 friendly).
 
     Writes are done in a threadpool to avoid blocking the event loop.
@@ -65,3 +65,7 @@ class JsonlFileSink(TelemetrySink):
                 "signals": [s.model_dump() for s in signals],
             }
         )
+
+
+# Backwards-compatible alias.
+JsonlFileSink = JsonlTelemetrySink
