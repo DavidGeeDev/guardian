@@ -50,6 +50,7 @@ class UncertaintyAdapter(SignalProvider[InputT, OutputT], ABC, Generic[InputT, O
         return [
             Signal(
                 name="uncertainty.score",
+                provider=getattr(self, "name", "uncertainty"),
                 type=SignalType.UNCERTAINTY,
                 severity=sev,
                 value={"aleatoric": u.aleatoric, "epistemic": u.epistemic},
