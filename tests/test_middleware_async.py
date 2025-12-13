@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import asyncio
+import pytest
 
 from sklearn.datasets import load_iris
 from sklearn.linear_model import LogisticRegression
+pytest.importorskip("mapie")
 from mapie.classification import MapieClassifier
 
 from model_guardian import DefaultGuardian
