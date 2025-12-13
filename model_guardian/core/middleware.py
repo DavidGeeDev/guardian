@@ -6,6 +6,7 @@ from typing import Generic, Optional, Sequence, TypeVar
 
 from model_guardian.interfaces import DriftAdapter, ModelAdapter, TelemetrySink, UncertaintyAdapter
 from model_guardian.schemas import (
+    GuardianConfig,
     FailureRecord,
     FailureType,
     GuardianAction,
@@ -14,6 +15,8 @@ from model_guardian.schemas import (
     Prediction,
     RequestContext,
     Signal,
+    SignalSeverity,
+    SignalType,
     UncertaintyScore,
 )
 from .policies import ThresholdAbstentionPolicy
@@ -42,14 +45,15 @@ class DefaultGuardian(Generic[InputT, OutputT]):
         drift: DriftAdapter[InputT, OutputT] | None = None,
         policy: ThresholdAbstentionPolicy[InputT, OutputT] | None = None,
         telemetry: TelemetrySink | None = None,
-        nonblocking_timeout_ms: int = 10,
+        config: GuardianConfig | None = None,
     ):
         self._model = model
         self._uncertainty = uncertainty
         self._drift = drift
         self._policy = policy or ThresholdAbstentionPolicy()
         self._telemetry = telemetry or TelemetryFanout()
-        self._nb_timeout = nonblocking_timeout_ms / 1000.0
+        self._config = config or GuardianConfig()
+        self._nb_timeout = self._config.nonblocking_timeout_ms / 1000.0
 
     async def __call__(self, x: InputT, *, context: RequestContext | None = None) -> GuardianResponse[OutputT]:
         ctx = context or RequestContext()
@@ -70,25 +74,51 @@ class DefaultGuardian(Generic[InputT, OutputT]):
 
         # drift is non-blocking; schedule it early
         drift_task: asyncio.Task[Sequence[Signal]] | None = None
-        if self._drift is not None:
+        if self._drift is not None and self._config.drift_mode != "off":
             drift_task = asyncio.create_task(self._drift.compute(x=x, prediction=pred, context=ctx))
 
         uncertainty_score: UncertaintyScore = await self._uncertainty.quantify(x=x, prediction=pred, context=ctx)
         signals.extend(list(await self._uncertainty.compute(x=x, prediction=pred, context=ctx)))
 
+        drift_signals: Sequence[Signal] = []
         if drift_task is not None:
             try:
                 drift_signals = await asyncio.wait_for(drift_task, timeout=self._nb_timeout)
-                signals.extend(list(drift_signals))
             except TimeoutError:
                 # allow it to continue in background; do not cancel
                 pass
             except Exception:
                 pass
 
+        # Drift handling modes:
+        # - shadow: record drift signals but do not let them influence policy
+        # - enforce: include drift signals in the policy inputs
+        if self._config.drift_mode == "enforce":
+            signals.extend(list(drift_signals))
+        elif self._config.drift_mode == "shadow":
+            # Add a non-blocking meta signal to indicate drift check ran/queued.
+            if drift_task is not None:
+                signals.append(
+                    Signal(
+                        name="drift.shadow",
+                        type=SignalType.DRIFT,
+                        severity=SignalSeverity.INFO,
+                        value={"mode": "shadow"},
+                        details={
+                            "message": "Drift check executed in shadow mode (not policy-enforcing)."
+                        },
+                        blocking=False,
+                    )
+                )
+            # Drift signals are still emitted to telemetry below.
+
         # 3) policy decision
         decision: GuardianDecision = await self._policy.decide(
-            x=x, prediction=pred, uncertainty=uncertainty_score, signals=signals, context=ctx
+            x=x,
+            prediction=pred,
+            uncertainty=uncertainty_score,
+            signals=signals,
+            context=ctx,
         )
 
         # 4) shape final response
@@ -103,7 +133,14 @@ class DefaultGuardian(Generic[InputT, OutputT]):
                 },
             )
             # telemetry async
-            asyncio.create_task(self._telemetry.emit_failure(context=ctx, failure=failure, decision=decision, signals=signals))
+            asyncio.create_task(
+                self._telemetry.emit_failure(
+                    context=ctx,
+                    failure=failure,
+                    decision=decision,
+                    signals=signals + list(drift_signals),
+                )
+            )
             return GuardianResponse(
                 prediction=None,
                 failure=failure,
@@ -118,7 +155,7 @@ class DefaultGuardian(Generic[InputT, OutputT]):
                 prediction=pred,
                 uncertainty=uncertainty_score,
                 decision=decision,
-                signals=signals,
+                signals=signals + list(drift_signals),
             )
         )
 
