@@ -1,4 +1,0 @@
-You are a senior Python architect. I uploaded my repo ZIP. It’s a Model Guardian skeleton with placeholders.
-Goal: make Phase 0 runnable end-to-end with sklearn+MAPIE demo, JSONL telemetry, and real pytest tests.
-Constraints: minimal changes; keep current file structure; fix the middleware import error (EventSink missing); implement predict-once (MAPIE can return Prediction with conformal artifacts); implement ThresholdAbstentionPolicy; create examples/sklearn_hello_world.py; replace placeholder tests with real tests.
-Output: provide unified diffs per file (diff) for only the files you changed. Ensure pytest runs and at least 4 tests pass. Do not add drift yet.
