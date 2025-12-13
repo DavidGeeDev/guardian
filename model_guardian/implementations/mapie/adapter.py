@@ -8,7 +8,7 @@ import numpy as np
 try:
     from mapie.classification import MapieClassifier
     from mapie.regression import MapieRegressor
-except Exception:  # pragma: no cover
+except ImportError:  # pragma: no cover
     MapieClassifier = None  # type: ignore[assignment]
     MapieRegressor = None  # type: ignore[assignment]
 
