@@ -21,6 +21,9 @@ This produces:
 - `requirements/base.lock`  (runtime)
 - `requirements/dev.lock`   (runtime + dev extras)
 
+> Note: This repo's `make lock-uv` target uses `uv pip compile` (pip-compatible lockfiles).
+> `uv lock` / `uv.lock` is a different workflow and is not used by default here.
+
 3) Install from lockfile (hash-verified):
 
 ```bash
